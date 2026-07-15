@@ -1,0 +1,125 @@
+// Artifact Digital Archive — PostgreSQL schema
+// Bilingual (English + Arabic) fields use *_En / *_Ar suffixes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Artifact {
+  id     String @id @default(cuid())
+  qrCode String @unique // short slug encoded in the QR (e.g. "art-0001")
+
+  // --- Basic Information ---
+  nameEn        String
+  nameAr        String
+  category      String?
+  descriptionEn String?  @db.Text
+  descriptionAr String?  @db.Text
+  keywords      String[] // tags, e.g. ["pottery","bronze age"]
+
+  // --- Historical Information ---
+  historicalPeriod       String?
+  date                   String? // free text, e.g. "circa 1200 BC"
+  origin                 String?
+  culturalSignificanceEn String? @db.Text
+  culturalSignificanceAr String? @db.Text
+  historicalBackgroundEn String? @db.Text
+  historicalBackgroundAr String? @db.Text
+  relatedPeople          String?
+
+  // --- Physical Details ---
+  dimensions  String? // e.g. "12 x 8 x 4 cm"
+  weight      String?
+  material    String?
+  color       String?
+  condition   String? // e.g. "Good", "Fragile"
+  damageNotes String? @db.Text
+
+  // --- Location Management ---
+  building      String?
+  floor         String?
+  room          String?
+  displayCase   String?
+  shelfPosition String?
+
+  // --- Conservation & Maintenance ---
+  responsibleCurator  String?
+  maintenanceSchedule String?
+
+  // --- Visitor Information ---
+  publicDescriptionEn String?  @db.Text
+  publicDescriptionAr String?  @db.Text
+  audioTourUrl        String?
+  relatedArtifactIds  String[] // ids of related artifacts
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // --- Relations (one artifact has many) ---
+  media            Media[]
+  conditionReports ConditionReport[]
+  movements        Movement[]
+  documents        Document[]
+}
+
+// Media & Digital Assets: images, 360°, 3D models, videos, audio
+model Media {
+  id         String    @id @default(cuid())
+  artifact   Artifact  @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifactId String
+  type       MediaType
+  url        String
+  captionEn  String?
+  captionAr  String?
+  sortOrder  Int       @default(0)
+  createdAt  DateTime  @default(now())
+}
+
+enum MediaType {
+  IMAGE
+  IMAGE_360
+  MODEL_3D
+  VIDEO
+  AUDIO
+}
+
+// Conservation: condition reports, restoration & inspection records
+model ConditionReport {
+  id         String   @id @default(cuid())
+  artifact   Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifactId String
+  reportDate DateTime @default(now())
+  kind       String   @default("condition") // condition | restoration | inspection
+  summaryEn  String?  @db.Text
+  summaryAr  String?  @db.Text
+  curator    String?
+}
+
+// Movement history: where the artifact has been
+model Movement {
+  id           String   @id @default(cuid())
+  artifact     Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifactId   String
+  movedAt      DateTime @default(now())
+  fromLocation String?
+  toLocation   String?
+  reason       String?
+  handledBy    String?
+}
+
+// Documentation: research papers, references, certificates, catalog records
+model Document {
+  id         String   @id @default(cuid())
+  artifact   Artifact @relation(fields: [artifactId], references: [id], onDelete: Cascade)
+  artifactId String
+  type       String // research | reference | certificate | catalog | other
+  titleEn    String?
+  titleAr    String?
+  url        String?
+  createdAt  DateTime @default(now())
+}

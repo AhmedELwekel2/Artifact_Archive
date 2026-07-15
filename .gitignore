@@ -1,0 +1,9 @@
+node_modules/
+.next/
+.env
+*.log
+next-env.d.ts
+
+# User-uploaded artifact images (keep the folder, ignore contents)
+/public/uploads/*
+!/public/uploads/.gitkeep
