@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: artifact_archive
+      # Local-only stack: trust auth on the internal network (no password), matching .env.
+      POSTGRES_HOST_AUTH_METHOD: trust
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d artifact_archive"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build:
+      context: .
+      args:
+        # Baked into the client bundle at build time. Change to your LAN IP
+        # (e.g. http://192.168.1.28:3000) if phones need to scan the QR codes,
+        # then rebuild:  docker compose up --build
+        NEXT_PUBLIC_BASE_URL: http://localhost:3000
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # 'db' is the compose service hostname on the internal network.
+      DATABASE_URL: postgresql://postgres@db:5432/artifact_archive
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      # Set to "true" the first time you want sample data loaded.
+      SEED_ON_START: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      # Persist user-uploaded artifact images across container rebuilds.
+      - uploads:/app/public/uploads
+
+volumes:
+  dbdata:
+  uploads:
